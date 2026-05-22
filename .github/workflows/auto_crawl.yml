@@ -1,0 +1,40 @@
+name: Softc Viewership Auto Crawler
+
+# 언제 실행할지 설정
+on:
+  schedule:
+    # 한국 시간(KST) 매일 새벽 4시 0분에 자동으로 실행하도록 설정 (UTC 시간 기준 19:00)
+    - cron: '16 0,12 * * *'
+  # 사용자가 원할 때 깃허브 웹사이트에서 버튼을 눌러 즉시 실행할 수 있도록 허용
+  workflow_dispatch:
+
+jobs:
+  crawl_and_update:
+    runs-on: ubuntu-latest # 가상 리눅스 서버에서 실행
+
+    steps:
+    # 1. 내가 올린 소스코드를 가상 서버로 내려받음
+    - name: Checkout repository code
+      uses: actions/checkout@v4
+
+    # 2. 가상 서버에 파이썬 설치
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    # 3. requirements.txt에 적어둔 라이브러리(playwright, requests) 설치
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    # 4. 화면이 없는 리눅스 서버 환경에서도 Playwright 크롬 브라우저가 정상 구동되도록 패키지 다운로드
+    - name: Install Playwright Browsers & System Dependencies
+      run: |
+        python -m playwright install chromium --with-deps
+
+    # 5. 내가 올린 파이썬 파일 실행
+    - name: Run Crawler Script
+      run: |
+        python scraper.py
