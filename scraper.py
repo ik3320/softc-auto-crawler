@@ -2,43 +2,58 @@ import asyncio
 import requests
 import json
 import re
+import os
+import sys
 from playwright.async_api import async_playwright
 
-# 1. 본인의 구글 웹 앱(GAS) 배포 URL을 입력하세요.
-GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwRdUyOOc8OL0BSd4LKAqL3B3CanxQ1GGXH5b_xWF-YxZ4Vbm1XT8RgyzYe6Atmr9DP/exec"
+# 깃허브 액션 연동을 고려하여 주소를 가져옵니다. (로컬 실행 시 주소를 직접 적으셔도 됩니다)
+GAS_WEBAPP_URL = os.environ.get("GAS_URL", "https://script.google.com/macros/s/AKfycbzSN3dBKe9W_kWScGsnXNvZfpPvNvadkwZV6djSP8xyKVkpK3G2iNtk0fWuskSMpytKxg/exec")
 
-async def crawl_softc_time(playwright_page, url):
-    """지정한 소프트콘 URL에서 방송 시간을 추출하는 함수"""
-    # 주소 끝에 파라미터가 없다면 붙여주고, 이미 있다면 유지합니다.
+if not GAS_WEBAPP_URL:
+    print("오류: 구글 웹 앱 URL(GAS_URL)이 세팅되지 않았습니다.")
+    sys.exit(1)
+
+async def crawl_softc_data(playwright_page, url):
+    """지정한 소프트콘 URL에서 방송 시간과 평균 시청자를 동시에 추출하는 함수"""
     target_url = url if "date=" in url else f"{url}?date=thismonth"
+    
+    # 기본값 설정
+    result = {"time": 0.0, "viewers": 0.0}
     
     try:
         await playwright_page.goto(target_url)
-        # 페이지 및 자바스크립트 바인딩 안정화를 위해 4초 대기
-        await playwright_page.wait_for_timeout(4000)
+        await playwright_page.wait_for_timeout(4000) # 페이지 안정화 대기
         
-        # '방송 시간' 이름표 옆에 있는 text-xl 클래스 div 조준
-        target_xpath = "//div[contains(text(), '방송 시간')]/following-sibling::div[contains(@class, 'text-xl')]"
-        
-        # 요소가 나타날 때까지 최대 4초 대기
-        await playwright_page.wait_for_selector(f"xpath={target_xpath}", timeout=4000)
-        
-        # 첫 번째 엘리먼트 값 추출
-        broadcast_time = await playwright_page.locator(f"xpath={target_xpath}").first.text_content()
+        # 1. 방송 시간 추출 및 정제
+        time_xpath = "//div[contains(text(), '방송 시간')]/following-sibling::div[contains(@class, 'text-xl')]"
+        try:
+            await playwright_page.wait_for_selector(f"xpath={time_xpath}", timeout=3000)
+            time_raw = await playwright_page.locator(f"xpath={time_xpath}").first.text_content()
+            if time_raw:
+                clean_time = re.sub(r'[^0-9.]', '', time_raw)
+                if clean_time.strip() != "":
+                    result["time"] = float(clean_time)
+        except Exception:
+            pass # 요소를 못 찾으면 기본값 0.0 유지
 
-        if broadcast_time is not None:  # 단순히 값이 존재하는지 체크 (문자열 '0'도 통과)
-            # 숫자와 마침표(.)만 추출
-            clean_time = re.sub(r'[^\d.]', '', broadcast_time)
+        # 2. 평균 시청자 추출 및 정제 ("평균 시청자" 이름표 옆의 text-xl 탐색)
+        viewers_xpath = "//div[contains(text(), '평균 시청자')]/following-sibling::div[contains(@class, 'text-xl')]"
+        try:
+            await playwright_page.wait_for_selector(f"xpath={viewers_xpath}", timeout=3000)
+            viewers_raw = await playwright_page.locator(f"xpath={viewers_xpath}").first.text_content()
+            if viewers_raw:
+                # 콤마(,), 따옴표 등을 제거하고 순수 숫자와 마침표만 추출
+                clean_viewers = re.sub(r'[^0-9.]', '', viewers_raw)
+                if clean_viewers.strip() != "":
+                    result["viewers"] = float(clean_viewers)
+        except Exception:
+            pass # 요소를 못 찾으면 기본값 0.0 유지
             
-            # clean_time이 빈 문자열이 아니라면 ('0'을 포함한 모든 숫자형 문자열)
-            if clean_time != "":
-                return float(clean_time)
-                
-        return 0.0
+        return result
         
     except Exception as e:
-        print(f"   [크롤링 실패] URL: {target_url} | 원인: Timeout 혹은 요소 없음")
-        return None
+        print(f"   [크롤링 실패/제한] URL: {target_url} | 기본값(0.0) 처리")
+        return result
 
 async def main():
     # 1. GAS로부터 대상 스트리머 목록 받아오기
@@ -60,7 +75,7 @@ async def main():
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=True, # 화면 숨김
+            headless=True,
             args=["--disable-blink-features=AutomationControlled"]
         )
         context = await browser.new_context(
@@ -70,23 +85,25 @@ async def main():
         page = await context.new_page()
 
         # 3. 목록을 순회하며 크롤링 진행
-        print("2. 소프트콘 방송 시간 크롤링 시작 (백그라운드)")
+        print("2. 소프트콘 방송 데이터 크롤링 시작 (백그라운드)")
         for idx, streamer in enumerate(streamer_list):
             s_id = streamer['sId']
             url = streamer['softcUrl']
             
             print(f" [{idx+1}/{len(streamer_list)}] 아이디: {s_id} 크롤링 중...")
             
-            result_time = await crawl_softc_time(page, url)
+            # 시간과 평청자 데이터를 동시에 딕셔너리로 받아옴
+            data_res = await crawl_softc_data(page, url)
             
-            if result_time is not None:
-                print(f"   -> 추출 성공: {result_time}")
-                payload_to_update.append({
-                    "sId": s_id,
-                    "broadcastTime": result_time
-                })
+            print(f"   -> 추출 성공 | 방송시간: {data_res['time']} | 평균시청자: {data_res['viewers']}")
             
-            # 사이트 디도스 방지 및 차단 회피를 위한 1.5초 휴식
+            payload_to_update.append({
+                "sId": s_id,
+                "broadcastTime": data_res["time"],
+                "avgViewers": data_res["viewers"] # 새롭게 추가된 데이터 필드
+            })
+            
+            # 차단 방지를 위한 휴식
             await page.wait_for_timeout(1500)
             
         await browser.close()
@@ -100,7 +117,6 @@ async def main():
         }
         
         try:
-            # GAS doPost 호출 (자동 리다이렉트 대응을 위해 전송)
             res = requests.post(GAS_WEBAPP_URL, data=json.dumps(post_data), headers={"Content-Type": "application/json"})
             print(f" -> 구글 시트 응답결과: {res.text}")
         except Exception as e:
