@@ -5,7 +5,7 @@ import re
 from playwright.async_api import async_playwright
 
 # 1. 본인의 구글 웹 앱(GAS) 배포 URL을 입력하세요.
-GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwUwwlC64yxKPYFlTcSY9FNK8LV0GTQGsva8JTddrc-tIHCYDqSvcVErJBjb8FBmsdxuQ/exec"
+GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwRdUyOOc8OL0BSd4LKAqL3B3CanxQ1GGXH5b_xWF-YxZ4Vbm1XT8RgyzYe6Atmr9DP/exec"
 
 async def crawl_softc_time(playwright_page, url):
     """지정한 소프트콘 URL에서 방송 시간을 추출하는 함수"""
