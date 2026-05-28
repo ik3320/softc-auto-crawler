@@ -3,7 +3,7 @@ name: Softc Viewership Auto Crawler
 # 언제 실행할지 설정
 on:
   schedule:
-    # 한국 시간(KST) 매일 새벽 4시 0분에 자동으로 실행하도록 설정 (UTC 시간 기준 19:00)
+    # 한국 시간(KST) 매일 새벽 4시 16분, 오후 4시 16분에 자동으로 실행하도록 설정 (UTC 시간 기준 19:00)
     - cron: '16 7,19 * * *'
   # 사용자가 원할 때 깃허브 웹사이트에서 버튼을 눌러 즉시 실행할 수 있도록 허용
   workflow_dispatch:
