@@ -7,7 +7,7 @@ import sys
 from playwright.async_api import async_playwright
 
 # 깃허브 액션 연동을 고려하여 주소를 가져옵니다. (로컬 실행 시 주소를 직접 적으셔도 됩니다)
-GAS_WEBAPP_URL = os.environ.get("GAS_URL", "https://script.google.com/macros/s/AKfycbwm6k5GOONXnDsf9GnHBzB-Jf4ut_fpozA4tP1MqZmvsYFq0isiXjpUJWGyqWlf9J_q0g/exec")
+GAS_WEBAPP_URL = os.environ.get("GAS_URL", "https://script.google.com/macros/s/AKfycbxE2AsR5cigM-Ua_YzITB32nwQj6Fg1RyEROe_oc-v_gyJ9f4aMZR2qF9jACpNM_jMc0A/exec")
 
 if not GAS_WEBAPP_URL:
     print("오류: 구글 웹 앱 URL(GAS_URL)이 세팅되지 않았습니다.")
