@@ -40,5 +40,4 @@ jobs:
         python scraper.py
 env:
   GAS_URL: ${{ secrets.GAS_WEB_APP_URL }}
-    env:
-    GAS_URL: ${{ secrets.GAS_WEB_APP_URL }}
+
