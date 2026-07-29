@@ -38,3 +38,6 @@ jobs:
     - name: Run Crawler Script
       run: |
         python scraper.py
+
+    env:
+    GAS_URL: ${{ secrets.GAS_WEB_APP_URL }}
