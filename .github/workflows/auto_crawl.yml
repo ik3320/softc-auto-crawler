@@ -37,6 +37,6 @@ jobs:
     # 5. 내가 올린 파이썬 파일 실행
     - name: Run Crawler Script
       env:
-        GAS_WEBAPP_URL: ${{ secrets.GAS_WEB_APP_URL }}
+        GAS_WEB_APP_URL: ${{ secrets.GAS_WEB_APP_URL }}
       run: |
         python scraper.py
